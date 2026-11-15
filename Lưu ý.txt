@@ -1,0 +1,79 @@
+graphify có tool CLI không dùng nữa thì nhớ xóa lun CLI của nó
+
+================================================================================
+THÔNG TIN VÀ LƯU Ý QUAN TRỌNG VỀ CÁC CÔNG CỤ CLI (MÔI TRƯỜNG CONDA NttDzEditVideo)
+================================================================================
+
+1. MÔI TRƯỜNG CONDA:
+   - Tên không gian ảo (Conda env): NttDzEditVideo
+   - Phiên bản Python: 3.10 (Bắt buộc dùng Python 3.10 để tương thích ổn định với PyTorch CUDA, PaddleOCR và VieNeu-TTS).
+   - Hỗ trợ phần cứng: Đã kích hoạt PyTorch CUDA 12.4 nhận diện đầy đủ GPU NVIDIA GeForce RTX 3060 Laptop GPU.
+   - FFmpeg / FFprobe: Đã tích hợp bản static build độc lập trực tiếp vào môi trường Conda (C:\Conda\envs\NttDzEditVideo\Scripts), tự động nhận diện khi kích hoạt môi trường.
+   - eSpeak-NG: Đã cài đặt vào hệ thống tại 'C:\Program Files\eSpeak NG' phục vụ nhận diện âm vị chuẩn cho VieNeu-TTS.
+
+2. CÁCH KÍCH HOẠT NHANH ĐỂ DÙNG CLI TỪ BẤT CỨ ĐÂU:
+   - Mở Terminal (CMD / PowerShell) và gõ:
+       conda activate NttDzEditVideo
+   - Sau khi activate, bạn có thể gọi trực tiếp các lệnh:
+       + yt-dlp <link_video>
+       + auto-editor <duong_dan_video>
+       + vsr -i <input.mp4> -o <output.mp4>
+       + video-subtitle-remover -i <input.mp4> -o <output.mp4>
+       + vieneu -t "văn bản" -o output.wav -v "Trúc Ly"
+       + hyperframes <init|preview|render|doctor> [options]
+       + ffmpeg / ffprobe
+
+3. CHI TIẾT TỪNG CÔNG CỤ VÀ LỆNH CHẠY TRỰC TIẾP (KHÔNG CẦN ACTIVATE CONDA):
+   A. yt-dlp:
+      - Thư mục: F:\A_Tool\Tools\yt-dlp
+      - File thực thi / wrapper: F:\A_Tool\Tools\yt-dlp\yt-dlp.bat
+      - Ví dụ:
+          F:\A_Tool\Tools\yt-dlp\yt-dlp.bat "https://www.youtube.com/watch?v=..."
+
+   B. auto-editor (Tự động cắt khoảng im lặng / khoảng chết trong video):
+      - Thư mục: F:\A_Tool\Tools\auto-editor
+      - File thực thi / wrapper: F:\A_Tool\Tools\auto-editor\auto-editor.bat
+      - Ví dụ:
+          F:\A_Tool\Tools\auto-editor\auto-editor.bat "input.mp4" --margin 0.2s
+
+   C. video-subtitle-remover (Xóa phụ đề / watermark cứng bằng AI):
+      - Thư mục: F:\A_Tool\Tools\video-subtitle-remover
+      - File thực thi / wrapper: F:\A_Tool\Tools\video-subtitle-remover\vsr.bat
+      - Ví dụ chạy CLI:
+          F:\A_Tool\Tools\video-subtitle-remover\vsr.bat -i "input.mp4" -o "output.mp4" --inpaint-mode sttn-auto
+      - Các mode xóa (--inpaint-mode): sttn-auto, sttn-det, lama, propainter, opencv.
+      - Tọa độ vùng phụ đề tùy chọn (-c YMIN YMAX XMIN XMAX): ví dụ `-c 600 700 100 1180`
+      - Lưu ý kỹ thuật: Đã sửa lỗi cú pháp f-string lồng nháy đơn (dòng 245 file sttn_auto_inpaint.py) để tương thích chuẩn Python 3.10.
+
+   D. VieNeu-TTS (v3 Turbo 48kHz - Tổng hợp giọng nói tiếng Việt & Nhân bản giọng):
+      - Thư mục mã nguồn & công cụ: F:\A_Tool\Tools\VieNeu-TTS
+      - File thực thi CLI / wrapper: F:\A_Tool\Tools\VieNeu-TTS\vieneu.bat
+      - File khởi chạy WebUI: F:\A_Tool\Tools\VieNeu-TTS\run_webui.bat
+      - Đặc điểm: Bản v3 Turbo xuất âm thanh chất lượng studio 48kHz, hỗ trợ đọc thẻ cảm xúc (ví dụ: [cười], [thở dài]), nhân bản giọng nói tức thì chỉ với vài giây file âm thanh mẫu.
+      - Ví dụ chạy CLI:
+          + Đọc trực tiếp câu văn bản:
+              F:\A_Tool\Tools\VieNeu-TTS\vieneu.bat -t "Xin chào các bạn, đây là VieNeu TTS." -o "output.wav" -v "Trúc Ly"
+          + Đọc từ file văn bản (.txt):
+              F:\A_Tool\Tools\VieNeu-TTS\vieneu.bat -f "story.txt" -o "story.wav" -v "Thiện Minh"
+          + Nhân bản giọng nói tức thì từ file âm thanh mẫu:
+              F:\A_Tool\Tools\VieNeu-TTS\vieneu.bat -t "Văn bản cần đọc" -r "ref_voice.wav" -o "cloned.wav"
+          + Xem danh sách giọng đọc mẫu tích hợp sẵn:
+              F:\A_Tool\Tools\VieNeu-TTS\vieneu.bat --list-voices
+          + Khởi chạy giao diện Web trực quan:
+              F:\A_Tool\Tools\VieNeu-TTS\run_webui.bat
+
+   E. Hyperframes (Tạo & Render video đồ họa chuyển động bằng HTML/CSS/JS của HeyGen):
+      - Thư mục mã nguồn & template: F:\A_Tool\Tools\hyperframes
+      - File thực thi / wrapper: F:\A_Tool\Tools\hyperframes\hyperframes.bat
+      - Yêu cầu môi trường: Đã tải Chrome Headless Shell và kết nối tự động với FFmpeg của Conda env.
+      - Ví dụ chạy CLI:
+          + Khởi tạo project video mới:
+              F:\A_Tool\Tools\hyperframes\hyperframes.bat init my-video
+          + Bật live preview studio trên trình duyệt:
+              F:\A_Tool\Tools\hyperframes\hyperframes.bat preview
+          + Render composition ra video MP4:
+              F:\A_Tool\Tools\hyperframes\hyperframes.bat render -o out.mp4
+          + Render WebM nền trong suốt (overlay):
+              F:\A_Tool\Tools\hyperframes\hyperframes.bat render --format webm -o out.webm
+          + Kiểm tra tính toàn vẹn hệ thống:
+              F:\A_Tool\Tools\hyperframes\hyperframes.bat doctor
