@@ -37,6 +37,8 @@ Skill này đóng vai trò nhạc trưởng: nhận diện ý định người d
 
 > **Lưu ý hiệu năng & Đồng bộ:** Chạy tuần tự các tác vụ nặng GPU (`vsr`, `vieneu-tts`) để tránh tràn VRAM (RTX 3060). Luôn kiểm tra thời lượng thực tế (`duration`) của file `.wav`/`.webm` vừa tạo trước khi tính mốc `timeline_in_sec` cho đoạn kế tiếp.
 
+>**Thư mục dự án Concat (`<PROJECT_DIR>`)**: Toàn bộ mã nguồn và file render tạm **bắt buộc** lưu trong `<PROJECT_DIR>\temp_assets\`.
+
 ---
 
 ## 3. Quy Tắc Đọc Cú Pháp Kịch Bản
@@ -120,6 +122,3 @@ title_add(
 
 
 ---
-
-
-
