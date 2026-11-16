@@ -1,6 +1,6 @@
 ---
 name: media-preprocess
-description: "Tiền xử lý và thu thập tài nguyên media trước khi dựng phim: cắt bỏ khoảng lặng/nói vấp bằng auto-editor, tẩy xóa phụ đề cứng hoặc logo/watermark bằng VSR AI, và tải video/nhạc nền chuẩn định dạng bằng yt-dlp vào thư mục dự án Concat."
+description: "Tiền xử lý và thu thập tài nguyên media trước khi dựng phim: cắt bỏ khoảng lặng/nói vấp bằng auto-editor, tẩy xóa phụ đề cứng hoặc logo/watermark bằng VSR AI, tải video/B-roll/meme/nhạc nền & SFX không bản quyền chuẩn định dạng bằng yt-dlp, tách phông xanh sang .webm Alpha và chuẩn hóa âm lượng LUFS vào thư mục dự án Concat."
 ---
 
 # Tiền Xử Lý & Thu Thập Tư Liệu Media (`media-preprocess`)
@@ -9,6 +9,7 @@ Tất cả công cụ đều chạy qua file `.bat` kích hoạt sẵn môi trư
 - **`auto-editor`**: `F:\A_Tool\Tools\auto-editor\auto-editor.bat`
 - **`VSR`**: `F:\A_Tool\Tools\video-subtitle-remover\vsr.bat`
 - **`yt-dlp`**: `F:\A_Tool\Tools\yt-dlp\yt-dlp.bat`
+- **`ffmpeg` / `ffprobe`**: Gọi qua `conda run -n NttDzEditVideo ffmpeg` (hoặc `ffprobe`).
 
 ---
 
@@ -20,7 +21,13 @@ Tất cả công cụ đều chạy qua file `.bat` kích hoạt sẵn môi trư
      ```powershell
      New-Item -ItemType Directory -Force -Path "<PROJECT_DIR>\temp_assets\preprocess" | Out-Null
      ```
-   - Toàn bộ file tải về và file sau xử lý **bắt buộc** lưu tại `<PROJECT_DIR>\temp_assets\preprocess\`. Tuyệt đối không ghi đè file gốc và không lưu rác vào thư mục cài đặt Skill.
+   - Toàn bộ file tải về và file sau xử lý **bắt buộc** lưu tại `<PROJECT_DIR>\temp_assets\preprocess\` với tiền tố phân loại rõ ràng để các skill khác (`hyperframes-motion`, `dynamic-visual-enhancer`) nhận diện ngay:
+     - `raw_*` / `source_*`: Video thoại/tư liệu chính.
+     - `bgm_*`: Nhạc nền không bản quyền.
+     - `sfx_*`: Hiệu ứng âm thanh ngắn (`whoosh`, `pop`, `ding`, `boom`...).
+     - `meme_*`: Video/âm thanh meme hoặc meme phông xanh đã tách nền (`meme_*_alpha.webm`).
+     - `broll_*`: Cảnh quay minh họa phụ trợ.
+   - Tuyệt đối không ghi đè file gốc và không lưu rác vào thư mục cài đặt Skill.
 
 2. **Chuẩn hóa tên file đầu ra (Chống lỗi chuỗi lệnh)**:
    - Không đặt tên file chứa dấu ngoặc kép, ký tự đặc biệt hoặc emoji. Khi tải từ internet, luôn dùng cờ `--restrict-filenames` để tránh lỗi không đọc được đường dẫn ở các bước xử lý tiếp theo.
@@ -66,36 +73,77 @@ Dùng để làm sạch phụ đề dính cứng (hardsub) hoặc logo góc màn
 
 ---
 
-## 4. Tải Video & Nhạc Nền Chuẩn Dựng Phim (`yt-dlp`)
+## 4. Tải Video, B-Roll, Meme & Âm Thanh Không Bản Quyền (`yt-dlp`)
 
 Luôn ép container về **MP4 (codec hình H.264 `avc1` + codec tiếng AAC `mp4a`)** hoặc **MP3/WAV** cho âm thanh. Tuyệt đối tránh tải mặc định định dạng `.webm` (VP9/AV1) vì dễ gây giật lag hoặc lỗi giải mã khi đưa vào timeline Concat.
 
-### Tải video chất lượng cao chuẩn H.264/MP4 (Đơn lẻ, chống tải nhầm cả playlist):
+### 4.1. Tải video chất lượng cao chuẩn H.264/MP4 (Đơn lẻ, chống tải nhầm cả playlist):
 ```powershell
 & "F:\A_Tool\Tools\yt-dlp\yt-dlp.bat" --no-playlist --restrict-filenames -f "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/b[ext=mp4]" --merge-output-format mp4 -o "<PROJECT_DIR>\temp_assets\preprocess\%(title)s.%(ext)s" "<URL>"
 ```
 
-### Tải nhạc nền / hiệu ứng âm thanh (MP3 chất lượng cao nhất):
+### 4.2. Chỉ tải đúng trích đoạn ngắn từ video dài (Tiết kiệm 95% thời gian & dung lượng):
+Dùng khi cần trích `3–7 giây` B-roll hoặc meme từ một video dài:
 ```powershell
-& "F:\A_Tool\Tools\yt-dlp\yt-dlp.bat" --no-playlist --restrict-filenames -x --audio-format mp3 --audio-quality 0 -o "<PROJECT_DIR>\temp_assets\preprocess\%(title)s.%(ext)s" "<URL>"
+& "F:\A_Tool\Tools\yt-dlp\yt-dlp.bat" --no-playlist --restrict-filenames --download-sections "*00:01:15-00:01:22" --force-keyframes-at-cuts -f "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/b[ext=mp4]" --merge-output-format mp4 -o "<PROJECT_DIR>\temp_assets\preprocess\broll_%(id)s.%(ext)s" "<URL>"
 ```
 
-### Tải âm thanh gốc không nén (WAV 48kHz — dùng khi cần xử lý giọng đọc/lọc tạp âm sâu):
+### 4.3. Tìm & Tải Nhạc Nền Không Bản Quyền (BGM — Lọc tự động video < 5 phút):
+Luôn đính kèm từ khóa an toàn bản quyền (`no copyright`, `royalty free`, `NCS`, `Kevin MacLeod`) và bộ lọc `--match-filter "duration < 300"` để tránh tải nhầm livestream/mix dài hàng giờ:
+```powershell
+& "F:\A_Tool\Tools\yt-dlp\yt-dlp.bat" --no-playlist --restrict-filenames --match-filter "duration < 300" -x --audio-format mp3 --audio-quality 0 -o "<PROJECT_DIR>\temp_assets\preprocess\bgm_raw_%(id)s.%(ext)s" "ytsearch1:<tu_khoa_nhac> no copyright background music"
+```
+
+### 4.4. Tìm & Tải Hiệu Ứng Âm Thanh (SFX — Lọc tự động < 15 giây):
+Dùng cho các tiếng động chuyển cảnh (`whoosh`, `pop`, `ding`, `glitch`, `vine boom`, `cash register`):
+```powershell
+& "F:\A_Tool\Tools\yt-dlp\yt-dlp.bat" --no-playlist --restrict-filenames --match-filter "duration < 15" -x --audio-format mp3 --audio-quality 0 -o "<PROJECT_DIR>\temp_assets\preprocess\sfx_raw_%(id)s.%(ext)s" "ytsearch1:<ten_sfx> sound effect no copyright"
+```
+
+### 4.5. Tìm & Tải Meme Video / Green-Screen Meme (< 20 giây):
+```powershell
+& "F:\A_Tool\Tools\yt-dlp\yt-dlp.bat" --no-playlist --restrict-filenames --match-filter "duration < 20" -f "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/b[ext=mp4]" --merge-output-format mp4 -o "<PROJECT_DIR>\temp_assets\preprocess\meme_raw_%(id)s.%(ext)s" "ytsearch1:<ten_meme> green screen meme"
+```
+
+### 4.6. Tải âm thanh gốc không nén (WAV 48kHz — dùng khi cần xử lý giọng đọc/lọc tạp âm sâu):
 ```powershell
 & "F:\A_Tool\Tools\yt-dlp\yt-dlp.bat" --no-playlist --restrict-filenames -x --audio-format wav --postprocessor-args "ffmpeg:-ar 48000" -o "<PROJECT_DIR>\temp_assets\preprocess\%(title)s.%(ext)s" "<URL>"
 ```
 
 ---
 
-## 5. Quy Trình Kết Hợp (Pipeline Chuẩn) & Kiểm Tra Đầu Ra
+## 5. Chuẩn Hóa Âm Lượng (LUFS) & Tách Phông Xanh Meme (`FFmpeg`)
+
+Mọi tài nguyên tải từ internet **bắt buộc** qua bước hậu xử lý nhanh bằng `FFmpeg` trước khi bàn giao cho `dynamic-visual-enhancer` hoặc nạp vào Concat MCP để tránh lệch âm lượng hoặc còn nền xanh:
+
+1. **Chuẩn hóa Nhạc Nền (BGM $\rightarrow$ `-24 LUFS` êm dịu, không đè giọng đọc):**
+   ```powershell
+   conda run -n NttDzEditVideo ffmpeg -y -i "<PROJECT_DIR>\temp_assets\preprocess\bgm_raw.mp3" -af "loudnorm=I=-24:TP=-2.0:LRA=11" -c:a libmp3lame -b:a 192k "<PROJECT_DIR>\temp_assets\preprocess\bgm_ready.mp3"
+   ```
+
+2. **Cắt khoảng lặng đầu + Chuẩn hóa SFX (`-14 LUFS` sắc nét, đánh khớp từng frame):**
+   ```powershell
+   conda run -n NttDzEditVideo ffmpeg -y -i "<PROJECT_DIR>\temp_assets\preprocess\sfx_raw.mp3" -af "silenceremove=start_periods=1:start_duration=0:start_threshold=-45dB,loudnorm=I=-14:TP=-1.5:LRA=7" -c:a libmp3lame -b:a 192k "<PROJECT_DIR>\temp_assets\preprocess\sfx_ready.mp3"
+   ```
+
+3. **Tách nền phông xanh Meme $\rightarrow$ `.webm` trong suốt (`yuva420p`) + Chuẩn hóa tiếng (`-16 LUFS`):**
+   *(Dùng `-auto-alt-ref 0` để đảm bảo kênh Alpha VP9 hiển thị trong suốt hoàn hảo trên Concat)*
+   ```powershell
+   conda run -n NttDzEditVideo ffmpeg -y -i "<PROJECT_DIR>\temp_assets\preprocess\meme_raw.mp4" -vf "colorkey=0x00FF00:0.28:0.12,despill=green,format=yuva420p" -af "loudnorm=I=-16:TP=-1.5:LRA=9" -c:v libvpx-vp9 -b:v 2M -auto-alt-ref 0 -c:a libopus "<PROJECT_DIR>\temp_assets\preprocess\meme_01_alpha.webm"
+   ```
+
+---
+
+## 6. Quy Trình Kết Hợp (Pipeline Chuẩn) & Kiểm Tra Đầu Ra
 
 Khi người dùng yêu cầu xử lý liên hoàn nhiều bước trên cùng một tư liệu, thực hiện đúng thứ tự tối ưu sau để tiết kiệm thời gian và tài nguyên GPU:
 
 1. **Bước 1 — Thu thập (`yt-dlp`)**: Tải video nguồn chuẩn H.264/MP4 vào `<PROJECT_DIR>\temp_assets\preprocess\source.mp4`.
 2. **Bước 2 — Cắt khoảng lặng (`auto-editor`)**: Lọc bỏ đoạn thừa trước (`source_clean.mp4`) để giảm thời lượng video, giúp bước AI phía sau chạy nhanh hơn và ít tốn VRAM hơn.
 3. **Bước 3 — Xóa phụ đề/logo (`VSR`)**: Chạy VSR trên file đã cắt gọn (`source_clean.mp4` $\rightarrow$ `source_ready.mp4`).
-4. **Bước 4 — Nghiệm thu trước khi bàn giao**:
-   Kiểm tra file kết quả tồn tại và dung lượng lớn hơn `0 KB` trước khi báo hoàn thành hoặc chèn vào Concat:
+4. **Bước 4 — Nghiệm thu & Bàn giao thông số cho Skill kế tiếp**:
+   Kiểm tra file kết quả tồn tại, dung lượng `> 0 KB` và đo chính xác `duration` trước khi báo hoàn thành hoặc chuyển sang `dynamic-visual-enhancer` / `Concat MCP`:
    ```powershell
    Get-Item "<PROJECT_DIR>\temp_assets\preprocess\source_ready.mp4" | Select-Object Name, Length
+   conda run -n NttDzEditVideo ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "<PROJECT_DIR>\temp_assets\preprocess\source_ready.mp4"
    ```

@@ -91,3 +91,64 @@ python scripts/subtitle_engine.py concat clip1.srt:12.500 clip2.srt:8.240 --fps 
 - [ ] Không có cue nào bắc cầu qua điểm cắt cảnh hoặc tràn đuôi sang clip kế tiếp khi `concat`.
 - [ ] Phụ đề không che mặt nhân vật, lower-third hoặc chữ on-screen.
 - [ ] Đã rà soát chính tả, tên riêng, đơn vị đo lường và con số.
+
+---
+
+## Hệ thống Màu Sắc, Preset & Hiệu Ứng Động (`.ass` Theme Engine)
+
+Khi người dùng yêu cầu phụ đề sinh động, có màu nhấn, phân biệt người nói hoặc hiệu ứng chuyển động, **không tự viết tay mã màu ASS** (dễ sai hệ màu đảo ngược `&HBBGGRR&`). Thay vào đó, Agent gắn **thẻ ngữ nghĩa nhẹ** vào văn bản và gọi lệnh `scripts/subtitle_engine.py style` để biên dịch sang `.ass` chuẩn xác 100%.
+
+### 1. Cú pháp thẻ ngữ nghĩa trong văn bản cue
+
+- **Nhấn mạnh từ khóa (`**từ khóa**` hoặc `==từ khóa==`):** Tự động đổi sang màu nhấn (`accent_color`) của preset và in đậm. Chỉ nhấn **1–2 từ khóa đắt giá/cue** để giữ nhịp thị giác.
+  - *Ví dụ:* `Bí quyết giúp bạn **tăng gấp đôi** hiệu suất.`
+- **Màu chỉ định trực tiếp (`[#RRGGBB:cụm từ]`):** Tô màu riêng cho một cụm từ cụ thể theo mã hex chuẩn RGB.
+  - *Ví dụ:* `Cảnh báo [#EF4444:rủi ro thanh khoản] tăng cao.`
+- **Phân màu theo người nói (`{S1}`, `{S2}`, `{S3}`, `{S4}`):** Đặt ở đầu cue để gán bảng màu riêng cho từng nhân vật (hoặc giữ nguyên tiền tố `[Tên nhân vật]:` và bật cờ `--auto-speaker`).
+  - *Ví dụ:* `{S1} Bạn nghĩ sao về kế hoạch này?` / `{S2} Tôi hoàn toàn **đồng ý**!`
+- **Né vùng che khuất (`{top}`):** Đặt ở đầu cue để tự động đẩy phụ đề lên vùng an toàn phía trên (`\an8`) khi gặp lower-third hoặc đồ họa ở cạnh dưới.
+
+### 2. Bộ Preset phong cách dựng sẵn (`--preset`)
+
+| Tên Preset | Thể loại video phù hợp | Đặc trưng thị giác | Hiệu ứng mặc định |
+| :--- | :--- | :--- | :---: |
+| `minimal-clean` | Vlog, Giáo dục, Phỏng vấn | Chữ trắng ngà thanh thoát, viền mảnh, nhấn vàng nắng | `fade` |
+| `shorts-pop` | TikTok, Reels, YouTube Shorts | Chữ đậm lớn, viền đen dày, từ khóa vàng chanh nổi bật | `pop` |
+| `boxed-modern` | Tin tức, Tài chính, Công nghệ | Nền hộp tối bán trong suốt (`BorderStyle=3`), nhấn xanh cyan | `fade` |
+| `podcast-duo` | Podcast, Talkshow 2–4 người | Bảng màu phân tách rõ từng người nói (Trắng / Vàng / Ngọc / San hô) | `slide-up` |
+| `cinematic` | Storytelling, Du lịch, Tài liệu | Giãn chữ rộng, bóng đổ mềm điện ảnh, nhấn vàng champagne | `blur-in` |
+| `gaming-neon` | Gaming, Livestream, Review Tech | Viền tím điện tương phản cao, nhấn xanh neon | `pop` |
+| `luxury-editorial` | Thời trang, Bất động sản, Brand | Nền hộp tối sang trọng, giãn chữ rộng, nhấn vàng kim | `fade` |
+| `karaoke-pulse` | Shorts/Reels chạy chữ từng từ | Đổi màu và bật nhịp phóng nhẹ theo từng từ đang đọc | `karaoke` |
+
+### 3. Danh sách hiệu ứng chuyển động (`--effect`)
+
+- `none`: Hiển thị tĩnh (chỉ áp dụng màu sắc, font, viền/nền hộp và phân vai).
+- `fade`: Mờ dần vào/ra mượt mà (`\fad`), tự động rút ngắn theo độ dài cue.
+- `pop`: Bật nảy nhẹ (`86% -> 105% -> 100%`) tạo điểm nhấn nhịp nhanh cho video ngắn.
+- `slide-up`: Trượt nhẹ từ dưới lên vị trí chuẩn kết hợp làm mờ.
+- `blur-in`: Hiệu ứng lấy nét mềm mại kiểu điện ảnh.
+- `karaoke`: Highlight đổi màu và bật nhịp lần lượt từng từ (hỗ trợ khớp chính xác word-level timestamps qua `--words-json` hoặc tự ước lượng theo độ dài từ).
+- `typewriter`: Hiển thị lần lượt từng từ xuất hiện theo nhịp đọc.
+
+### 4. Lệnh CLI tạo màu, hiệu ứng & ghép nối đồng bộ
+
+```bash
+# 1. Xem danh sách toàn bộ preset & hiệu ứng đang có
+python scripts/subtitle_engine.py presets
+
+# 2. Áp dụng preset cho video dọc 9:16 (Shorts/Reels) + kiểm tra QC tự động
+python scripts/subtitle_engine.py style input.srt --preset shorts-pop --mode 9:16 --run-qc --out styled.ass
+
+# 3. Tùy biến màu thương hiệu, font chữ, tự nhận diện người nói & né lower-third theo khung giờ
+python scripts/subtitle_engine.py style podcast.srt --preset podcast-duo --effect slide-up \
+  --primary-color "#FFFFFF" --accent-color "#00E5FF" --auto-speaker \
+  --top-windows "5.0-11.5,42.0-48.0" --out podcast.ass
+
+# 4. Ghép nối nhiều clip và xuất thẳng ra file .ass đã có màu & hiệu ứng
+python scripts/subtitle_engine.py concat clip1.srt:12.500 clip2.srt:8.240 --fps 30 --mode 16:9 \
+  --preset boxed-modern --run-qc --out final.ass
+
+# 5. Burn-in phụ đề .ass vào video bằng FFmpeg
+ffmpeg -i input.mp4 -vf "ass=final.ass" -c:a copy output.mp4
+```
