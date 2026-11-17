@@ -105,44 +105,6 @@ Mọi lệnh CLI chạy trong môi trường Conda `NttDzEditVideo` hoặc qua f
 
 ---
 
-## Cấu Trúc Thư Mục
-
-```
-NttDzEditVideo/
-├── README.md                              # ← Bạn đang đọc file này
-├── SETTING.md                             # Hướng dẫn cài đặt Conda, tools, MCP
-├── Lưu ý.txt                             # Ghi chú nhanh CLI & token
-├── .gitignore
-│
-├── rules/
-│   └── GEMINI.md                          # Thông tin kết nối Concat (IP, Token)
-│
-└── skills/
-    ├── main-ntt-edit/                     # Điều phối trung tâm
-    │   ├── SKILL.md
-    │   └── README_SETUP.md                # Hướng dẫn cấu hình Concat MCP
-    │
-    ├── vieneu-tts-voiceover/              # Lồng tiếng AI
-    │   └── SKILL.md
-    │
-    ├── subtitle-craft/                    # Phụ đề chuyên nghiệp
-    │   ├── SKILL.md
-    │   └── scripts/
-    │       └── subtitle_engine.py         # Engine QC, concat, styling (~44KB)
-    │
-    ├── hyperframes-motion/                # Đồ họa chuyển động
-    │   └── SKILL.md
-    │
-    ├── media-preprocess/                  # Tiền xử lý media
-    │   └── SKILL.md
-    │
-    ├── dynamic-visual-enhancer/           # Tăng cường nhịp điệu
-        └── SKILL.md
-
-```
-
----
-
 ## Luồng Làm Việc Điển Hình
 
 ### Luồng 1 — Dựng video từ kịch bản có mốc thời gian
