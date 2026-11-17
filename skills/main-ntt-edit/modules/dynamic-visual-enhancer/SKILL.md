@@ -45,7 +45,7 @@ Trước khi gọi bất kỳ lệnh render nào, đọc dữ liệu timeline (`
 | **Giọng đọc / Từ khóa đắt giá** | Khái niệm chính, con số thống kê, câu hỏi mở đầu (Hook), liệt kê bước 1-2-3 | Gọi **`hyperframes-motion`** tạo **Keyword Callout / Counter / Physics Tag Overlay** (`.webm`) + ghép **`sfx_pop` / `sfx_ding`** từ `media-preprocess`. |
 | **Tình huống hài hước / Bất ngờ / Twist** | Câu nói châm biếm, phản ứng bất ngờ, ví von đời thường | Gọi **`media-preprocess`** tải **Meme phông xanh (`.webm` Alpha)** hoặc **Cutaway Meme (`1.5–2.5s`)** + **`sfx_boom` / `Impact Shake` / `Glitch Shader`** + tạm ngắt nhạc nền BGM để tạo điểm rơi hài hước. |
 | **Âm thanh (`ffprobe` / `ffmpeg`)** | Đỉnh âm lượng nhấn giọng hoặc khoảng nghỉ chuyển ý (> `0.8s`) | Cắt chuyển góc **Punch-in / Punch-out** tại điểm chuyển ý + ghép **`sfx_whoosh`** mượt mà. |
-| **Hình ảnh / Video nền** | Cảnh quay đứng yên > `4.5s`, chuỗi ảnh minh họa từ `comfyui-image-gen`, hoặc B-roll nối tiếp | Áp dụng **Ken Burns** / **PixiJS 2.5D Parallax** cho ảnh tĩnh, hoặc dùng **GL Transitions** nối mượt 2 ảnh/clip B-roll (`0.6s – 1.0s`). |
+| **Hình ảnh / Video nền** | Cảnh quay đứng yên > `4.5s`, chuỗi ảnh minh họa từ `yt-dlp`, hoặc B-roll nối tiếp | Áp dụng **Ken Burns** / **PixiJS 2.5D Parallax** cho ảnh tĩnh, hoặc dùng **GL Transitions** nối mượt 2 ảnh/clip B-roll (`0.6s – 1.0s`). |
 
 ---
 

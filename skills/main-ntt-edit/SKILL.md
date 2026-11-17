@@ -16,11 +16,10 @@ Skill này đóng vai trò nhạc trưởng: nhận diện ý định người d
 3. **Luôn lưu dự án (`project_save`)**: Sau bất kỳ thao tác thay đổi nào trên timeline (thêm, cắt, dịch chuyển, xóa clip, thêm chữ), bắt buộc gọi `project_save` để đồng bộ lên cửa sổ Concat.
 4. **Bảo toàn file gốc & cô lập file tạm**: Không ghi đè file tư liệu gốc. Mọi file tạm (âm thanh TTS, video cắt lọc, ảnh AI tạo mới, overlay) phải lưu vào thư mục tạm riêng của dự án (`<PROJECT_DIR>\temp_assets\`) với tên gắn mốc thời gian/số thứ tự để tránh ghi đè lẫn nhau.
 5. **Giao tiếp tiếng Việt**: Xác minh file tồn tại trên ổ đĩa trước khi thao tác và báo cáo tiến độ ngắn gọn bằng tiếng Việt.
-6. **Quy chuẩn môi trường thực thi (`NttDzEditVideo` & `comfyui`)**:
+6. **Quy chuẩn môi trường thực thi (`NttDzEditVideo`)**:
    - Mọi tác vụ CLI biên tập/xử lý media (`vieneu`, `hyperframes`, `vsr`, `auto-editor`, `yt-dlp`, `ffmpeg`, `ffprobe`) **bắt buộc** phải chạy trong phạm vi môi trường Conda `NttDzEditVideo` (`C:\Conda\envs\NttDzEditVideo`, Python 3.10 + CUDA 12.4).
    - **Ưu tiên 1:** Gọi trực tiếp các file `.bat` wrapper đã cấu hình sẵn tại `F:\A_Tool\Tools\<tên_tool>\*.bat`.
    - **Ưu tiên 2:** Nếu gọi lệnh trực tiếp (đặc biệt là `ffmpeg` / `ffprobe` hoặc script Python phụ trợ), bắt buộc dùng cú pháp `conda run -n NttDzEditVideo <lệnh>` — tuyệt đối không chạy bằng Python mặc định của hệ thống (`C:\Conda` base/system) để tránh lỗi thiếu thư viện hoặc mất hỗ trợ GPU.
-   - **Ngoại lệ riêng cho ComfyUI Backend:** Máy chủ sinh ảnh AI ComfyUI (`E:\EDIT\Photoshop\ComfyUI_Qwen`) chạy trong môi trường Conda riêng **`comfyui`** (`C:\Conda\envs\comfyui\python.exe`) tại cổng nội bộ `http://127.0.0.1:8188`. Script điều khiển `comfyui_generate.py` tự động gọi đúng interpreter này khi cần khởi động backend.
 7. **Lỗi và báo cáo**: Nếu không kết nối được Concat MCP và các công cụ hổ trợ thì hãy dừng vào báo cáo nguyên nhân không kết nối được và đề xuất cách khắc phục.
 
 ---
@@ -35,7 +34,6 @@ Skill này đóng vai trò nhạc trưởng: nhận diện ý định người d
 | **Tạo phụ đề, chữ chạy, tiêu đề chính** | Thực thi trực tiếp bằng **Concat MCP** (`captions_add`, `title_add` - Mục 4.2) và gọi sub-skill **`subtitle-craft`**. |
 | **Lồng tiếng, thuyết minh, đọc kịch bản** | Gọi sub-skill **`vieneu-tts-voiceover`** tạo file `.wav` -> nạp vào Concat MCP. |
 | **Tạo Intro, Outro, Lower-third, chữ bay, biểu đồ code** | Gọi sub-skill **`hyperframes-motion`** tạo `.webm`, `.mp4` tùy trường hợp -> chèn trên cùng timeline của Concat. |
-| **Tạo ảnh thực tế, minh họa B-roll, chân dung, bối cảnh (khi Hyperframes không vẽ được bằng code và `yt-dlp` không tìm thấy)** | Gọi sub-skill **`comfyui-image-gen`** sinh ảnh `.png` qua ComfyUI (`Qwen-Image 2.1`) -> có thể qua **`dynamic-visual-enhancer`** để thêm chuyển động Ken Burns -> nạp vào Concat MCP. |
 | **Cắt khoảng lặng, xóa logo/sub, tải tư liệu có sẵn** | Gọi sub-skill **`media-preprocess`** (`auto-editor`, `VSR`, `yt-dlp`) -> nạp file sạch vào Concat. |
 | **Tăng sinh động, chống nhàm chán (zoom theo nhịp thoại, overlay từ khóa, ken burns cho ảnh tĩnh)** | Gọi sub-skill **`dynamic-visual-enhancer`** phân tích giọng đọc/hình ảnh -> tạo chuyển động/overlay `.webm` nạp vào Concat MCP. |
 | **Render / Xuất video thành phẩm** | Chỉ chạy khi người dùng yêu cầu rõ: `project_save` -> `export_start` -> `export_wait`. |
@@ -43,12 +41,10 @@ Skill này đóng vai trò nhạc trưởng: nhận diện ý định người d
 ### Ma Trận Chọn Nguồn Hình Ảnh Tự Động (Visual Fallback Strategy)
 Khi kịch bản cần hình ảnh minh họa cho một phân đoạn lời thoại mà người dùng chưa cung cấp sẵn file:
 1. **Đồ họa vector, chữ động, số liệu, UI, intro/outro:** Dùng **`hyperframes-motion`**.
-2. **Tư liệu có thật gắn với sự kiện/nhân vật/tin tức cụ thể:** Thử tìm bằng **`media-preprocess` (`yt-dlp`)** trước.
-3. **Cảnh quay thực tế chung, bối cảnh điện ảnh, minh họa khái niệm, nhân vật hư cấu, hoặc khi `yt-dlp` không tìm được tư liệu sạch:** Dùng **`comfyui-image-gen`** tạo ảnh trực tiếp theo tỷ lệ khung hình dự án (`16:9` hoặc `9:16`), sau đó kết hợp **`dynamic-visual-enhancer`** (zoom/pan nhẹ) để tránh khung hình tĩnh.
+2. **Tư liệu có thật gắn với sự kiện/nhân vật/tin tức cụ thể:** Thử tìm bằng **`media-preprocess` (`yt-dlp`)** .
 
 > **Lưu ý hiệu năng & Quản lý VRAM (RTX 3060 6GB):**
-> - **Tuyệt đối chạy tuần tự** các tác vụ nặng GPU (`comfyui-image-gen`, `vsr`, `vieneu-tts-voiceover`) — không chạy song song để tránh lỗi tràn 6GB VRAM (CUDA OOM).
-> - Sau khi **`comfyui-image-gen`** sinh xong lô ảnh cho kịch bản, bắt buộc giải phóng VRAM (`--free-vram` / `POST http://127.0.0.1:8188/free`) trước khi gọi `vsr`, `vieneu-tts-voiceover` hoặc render trên Concat.
+> - **Tuyệt đối chạy tuần tự** các tác vụ nặng GPU (`vsr`, `vieneu-tts-voiceover`) — không chạy song song để tránh lỗi tràn 6GB VRAM (CUDA OOM).
 > - Luôn kiểm tra thời lượng thực tế (`duration`) của file `.wav`/`.webm` vừa tạo trước khi tính mốc `timeline_in_sec` cho đoạn kế tiếp.
 
 > **Thư mục dự án Concat (`<PROJECT_DIR>`)**: Toàn bộ mã nguồn và file render tạm **bắt buộc** lưu trong `<PROJECT_DIR>\temp_assets\`.
@@ -69,13 +65,13 @@ Khi người dùng đưa kịch bản có gắn thẻ định dạng, phân tác
   ```text
   [00:14] [img: Cận cảnh kỹ sư lập trình trong phòng tối ánh sáng neon xanh, phong cách điện ảnh] [trầm ổn] Công nghệ AI đang thay đổi cách chúng ta làm việc.
   ```
-  -> Chuyển mô tả trong `[img: ...]` sang sub-skill **`comfyui-image-gen`** để sinh ảnh khớp tỷ lệ khung hình dự án, đồng thời gọi **`vieneu-tts-voiceover`** sinh giọng đọc. Sau đó chèn ảnh lên track video từ `00:14` với thời lượng bằng đúng `duration` của file âm thanh thoại tương ứng (có thể áp dụng Ken Burns qua **`dynamic-visual-enhancer`**).
+  -> Chuyển mô tả trong `[img: ...]` sang sub-skill **`media-preprocess`** hoặc **`hyperframes-motion`** để tải hoặc tạo sản phẩm đồ họa khớp tỷ lệ khung hình dự án, đồng thời gọi **`vieneu-tts-voiceover`** sinh giọng đọc. Sau đó chèn ảnh lên track video từ `00:14` với thời lượng bằng đúng `duration` của file âm thanh thoại tương ứng (có thể áp dụng Ken Burns qua **`dynamic-visual-enhancer`**).
 
 * **Thẻ phân đoạn đặc biệt (`[intro]`, `[outro]`)**:
   ```text
   [intro] [ngạo nghễ] Nếu các ngươi đang lo lắng về abc.
   ```
-  -> Nếu không có video đi kèm, dùng nội dung câu thoại kết hợp sub-skill **`hyperframes-motion`** (có thể dùng ảnh nền tạo từ **`comfyui-image-gen`** nếu cần bối cảnh thực) để dựng video đồ họa mở đầu, đồng thời gọi **`vieneu-tts-voiceover`** tạo giọng đọc khớp thời lượng.
+  -> Nếu không có video đi kèm, dùng nội dung câu thoại kết hợp sub-skill **`hyperframes-motion`** (có thể dùng ảnh nền tải từ **`media-preprocess`** nếu cần bối cảnh thực) để dựng video đồ họa mở đầu, đồng thời gọi **`vieneu-tts-voiceover`** tạo giọng đọc khớp thời lượng.
   -> Mặc định `[intro]` đặt tại đầu timeline (`0.0s`) nếu không ghi mốc thời gian; `[outro]` đặt nối tiếp ở cuối timeline.
 
 ---
