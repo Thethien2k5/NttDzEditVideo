@@ -25,10 +25,12 @@ Skill này đóng vai trò nhạc trưởng: nhận diện ý định người d
 
 ## 2. Bản Đồ Điều Hướng Ý Định (Intent Routing)
 
+> **Quy tắc nạp sub-skill:** Toàn bộ sub-skill nằm tại `skills/main-ntt-edit/modules/<tên-sub-skill>/SKILL.md`. Khi cần dùng sub-skill nào trong bảng dưới, bắt buộc đọc file `SKILL.md` tương ứng trước khi thực thi.
+
 | Yêu cầu của người dùng | Hành động / Công cụ thực thi |
 | :--- | :--- |
 | **Cắt ghép, chia đoạn, chèn clip/nhạc** | Thực thi trực tiếp bằng **Concat MCP** (Mục 4.1). |
-| **Tạo phụ đề, chữ chạy, tiêu đề chính** | Thực thi trực tiếp bằng **Concat MCP** (`captions_add`, `title_add` - Mục 4.2). |
+| **Tạo phụ đề, chữ chạy, tiêu đề chính** | Thực thi trực tiếp bằng **Concat MCP** (`captions_add`, `title_add` - Mục 4.2). và gọi sub-skill **`subtitle-craft`**|
 | **Lồng tiếng, thuyết minh, đọc kịch bản** | Gọi sub-skill **`vieneu-tts-voiceover`** tạo file `.wav` -> nạp vào Concat MCP. |
 | **Tạo Intro, Outro, Lower-third, chữ bay** | Gọi sub-skill **`hyperframes-motion`** tạo `.webm`, `.mp4` tùy trường hợp -> chèn trên cùng timeline của Concat. |
 | **Cắt khoảng lặng, xóa logo/sub, tải tư liệu** | Gọi sub-skill **`media-preprocess`** (`auto-editor`, `VSR`, `yt-dlp`) -> nạp file sạch vào Concat. |
