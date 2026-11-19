@@ -17,7 +17,7 @@ Skill này đóng vai trò nhạc trưởng: nhận diện ý định người d
 4. **Bảo toàn file gốc & cô lập file tạm**: Không ghi đè file tư liệu gốc. Mọi file tạm (âm thanh TTS, video cắt lọc, ảnh AI tạo mới, overlay) phải lưu vào thư mục tạm riêng của dự án (`<PROJECT_DIR>\temp_assets\`) với tên gắn mốc thời gian/số thứ tự để tránh ghi đè lẫn nhau.
 5. **Giao tiếp tiếng Việt**: Xác minh file tồn tại trên ổ đĩa trước khi thao tác và báo cáo tiến độ ngắn gọn bằng tiếng Việt.
 6. **Quy chuẩn môi trường thực thi (`NttDzEditVideo`)**:
-   - Mọi tác vụ CLI biên tập/xử lý media (`vieneu`, `hyperframes`, `vsr`, `auto-editor`, `yt-dlp`, `ffmpeg`, `ffprobe`) **bắt buộc** phải chạy trong phạm vi môi trường Conda `NttDzEditVideo` (`C:\Conda\envs\NttDzEditVideo`, Python 3.10 + CUDA 12.4).
+   - Mọi tác vụ CLI biên tập/xử lý media (`vieneu`, `hyperframes`, `vsr`, `auto-editor`, `yt-dlp`, `whisperx`, `demucs`, `ffmpeg`, `ffprobe`) **bắt buộc** phải chạy trong phạm vi môi trường Conda `NttDzEditVideo` (`C:\Conda\envs\NttDzEditVideo`, Python 3.10 + CUDA 12.4).
    - **Ưu tiên 1:** Gọi trực tiếp các file `.bat` wrapper đã cấu hình sẵn tại `F:\A_Tool\Tools\<tên_tool>\*.bat`.
    - **Ưu tiên 2:** Nếu gọi lệnh trực tiếp (đặc biệt là `ffmpeg` / `ffprobe` hoặc script Python phụ trợ), bắt buộc dùng cú pháp `conda run -n NttDzEditVideo <lệnh>` — tuyệt đối không chạy bằng Python mặc định của hệ thống (`C:\Conda` base/system) để tránh lỗi thiếu thư viện hoặc mất hỗ trợ GPU.
 7. **Lỗi và báo cáo**: Nếu không kết nối được Concat MCP và các công cụ hổ trợ thì hãy dừng vào báo cáo nguyên nhân không kết nối được và đề xuất cách khắc phục.
@@ -37,6 +37,7 @@ Skill này đóng vai trò nhạc trưởng: nhận diện ý định người d
 | **Cắt khoảng lặng, xóa logo/sub, tải tư liệu có sẵn** | Gọi sub-skill **`media-preprocess`** (`auto-editor`, `VSR`, `yt-dlp`) -> nạp file sạch vào Concat. |
 | **Tăng sinh động, chống nhàm chán (zoom theo nhịp thoại, overlay từ khóa, ken burns cho ảnh tĩnh)** | Gọi sub-skill **`dynamic-visual-enhancer`** phân tích giọng đọc/hình ảnh -> tạo chuyển động/overlay `.webm` nạp vào Concat MCP. |
 | **Render / Xuất video thành phẩm** | Chỉ chạy khi người dùng yêu cầu rõ: `project_save` -> `export_start` -> `export_wait`. |
+| **Trích xuất kịch bản, chép lời theo mốc thời gian `[HH:MM:SS -> HH:MM:SS]` từ video/audio (có hoặc không có nhạc nền)** | Gọi sub-skill **`media-preprocess`** (`WhisperX` + `Demucs` tách giọng) -> xuất `transcript_script.txt` / `.srt` phục vụ biên tập hoặc nạp phụ đề vào Concat MCP. |
 
 ### Ma Trận Chọn Nguồn Hình Ảnh Tự Động (Visual Fallback Strategy)
 Khi kịch bản cần hình ảnh minh họa cho một phân đoạn lời thoại mà người dùng chưa cung cấp sẵn file:
@@ -44,7 +45,7 @@ Khi kịch bản cần hình ảnh minh họa cho một phân đoạn lời tho�
 2. **Tư liệu có thật gắn với sự kiện/nhân vật/tin tức cụ thể:** Thử tìm bằng **`media-preprocess` (`yt-dlp`)** .
 
 > **Lưu ý hiệu năng & Quản lý VRAM (RTX 3060 6GB):**
-> - **Tuyệt đối chạy tuần tự** các tác vụ nặng GPU (`vsr`, `vieneu-tts-voiceover`) — không chạy song song để tránh lỗi tràn 6GB VRAM (CUDA OOM).
+> - **Tuyệt đối chạy tuần tự** các tác vụ nặng GPU (`vsr`, `vieneu-tts-voiceover`, `whisperx`, `demucs`) — không chạy song song để tránh lỗi tràn 6GB VRAM (CUDA OOM).
 > - Luôn kiểm tra thời lượng thực tế (`duration`) của file `.wav`/`.webm` vừa tạo trước khi tính mốc `timeline_in_sec` cho đoạn kế tiếp.
 
 > **Thư mục dự án Concat (`<PROJECT_DIR>`)**: Toàn bộ mã nguồn và file render tạm **bắt buộc** lưu trong `<PROJECT_DIR>\temp_assets\`.

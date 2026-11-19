@@ -1,14 +1,16 @@
 ---
 name: media-preprocess
-description: "Tiền xử lý và thu thập tài nguyên media trước khi dựng phim: cắt bỏ khoảng lặng/nói vấp bằng auto-editor, tẩy xóa phụ đề cứng hoặc logo/watermark bằng VSR AI, tải video/B-roll/meme/nhạc nền & SFX không bản quyền chuẩn định dạng bằng yt-dlp, tách phông xanh sang .webm Alpha và chuẩn hóa âm lượng LUFS vào thư mục dự án Concat."
+description: "Tiền xử lý, trích xuất kịch bản và thu thập tài nguyên media trước khi dựng phim: cắt bỏ khoảng lặng/nói vấp bằng auto-editor, tẩy xóa phụ đề cứng hoặc logo/watermark bằng VSR AI, tách giọng khỏi nhạc nền bằng Demucs và trích xuất kịch bản/phụ đề đa ngôn ngữ theo mốc thời gian bằng WhisperX, tải video/B-roll/meme/nhạc nền & SFX không bản quyền chuẩn định dạng bằng yt-dlp, tách phông xanh sang .webm Alpha và chuẩn hóa âm lượng LUFS vào thư mục dự án Concat."
 ---
 
-# Tiền Xử Lý & Thu Thập Tư Liệu Media (`media-preprocess`)
+# Tiền Xử Lý, Trích Xuất Kịch Bản & Thu Thập Tư Liệu Media (`media-preprocess`)
 
-Tất cả công cụ đều chạy qua file `.bat` kích hoạt sẵn môi trường `NttDzEditVideo` (Python 3.10 + PyTorch CUDA 12.4) trên PowerShell:
+Tất cả công cụ đều chạy qua file `.bat` kích hoạt sẵn đường dẫn thư viện của môi trường `NttDzEditVideo` (Python 3.10 + PyTorch CUDA 12.4) trên PowerShell:
 - **`auto-editor`**: `F:\A_Tool\Tools\auto-editor\auto-editor.bat`
 - **`VSR`**: `F:\A_Tool\Tools\video-subtitle-remover\vsr.bat`
 - **`yt-dlp`**: `F:\A_Tool\Tools\yt-dlp\yt-dlp.bat`
+- **`WhisperX`**: `F:\A_Tool\Tools\whisperx\whisperx.bat`
+- **`Demucs`**: `F:\A_Tool\Tools\demucs\demucs.bat`
 - **`ffmpeg` / `ffprobe`**: Gọi qua `conda run -n NttDzEditVideo ffmpeg` (hoặc `ffprobe`).
 
 ---
@@ -21,20 +23,21 @@ Tất cả công cụ đều chạy qua file `.bat` kích hoạt sẵn môi trư
      ```powershell
      New-Item -ItemType Directory -Force -Path "<PROJECT_DIR>\temp_assets\preprocess" | Out-Null
      ```
-   - Toàn bộ file tải về và file sau xử lý **bắt buộc** lưu tại `<PROJECT_DIR>\temp_assets\preprocess\` với tiền tố phân loại rõ ràng để các skill khác (`hyperframes-motion`, `dynamic-visual-enhancer`) nhận diện ngay:
+   - Toàn bộ file tải về và file sau xử lý **bắt buộc** lưu tại `<PROJECT_DIR>\temp_assets\preprocess\` với tiền tố phân loại rõ ràng để các skill khác (`hyperframes-motion`, `dynamic-visual-enhancer`, `subtitle-craft`) nhận diện ngay:
      - `raw_*` / `source_*`: Video thoại/tư liệu chính.
      - `bgm_*`: Nhạc nền không bản quyền.
      - `sfx_*`: Hiệu ứng âm thanh ngắn (`whoosh`, `pop`, `ding`, `boom`...).
      - `meme_*`: Video/âm thanh meme hoặc meme phông xanh đã tách nền (`meme_*_alpha.webm`).
      - `broll_*`: Cảnh quay minh họa phụ trợ.
+     - `transcript_*` / `vocals_*`: File kịch bản văn bản (`.txt`), phụ đề (`.srt`), dữ liệu JSON (`.json`) và track giọng tách riêng (`.wav`).
    - Tuyệt đối không ghi đè file gốc và không lưu rác vào thư mục cài đặt Skill.
 
 2. **Chuẩn hóa tên file đầu ra (Chống lỗi chuỗi lệnh)**:
    - Không đặt tên file chứa dấu ngoặc kép, ký tự đặc biệt hoặc emoji. Khi tải từ internet, luôn dùng cờ `--restrict-filenames` để tránh lỗi không đọc được đường dẫn ở các bước xử lý tiếp theo.
 
-3. **Bảo vệ VRAM GPU RTX 3060 (Chạy tuần tự)**:
-   - `VSR` sử dụng GPU RTX 3060 (CUDA 12.4) tiêu tốn nhiều VRAM. Chỉ xử lý **từng video một**.
-   - **Cấm** chạy đồng thời nhiều tiến trình `vsr.bat`, hoặc chạy `vsr.bat` song song với `vieneu.bat` (TTS) hay tiến trình render của Concat.
+3. **Bảo vệ VRAM GPU RTX 3060 6GB (Chạy tuần tự)**:
+   - Các công cụ AI (`vsr.bat`, `whisperx.bat`, `demucs.bat`, `vieneu.bat`) sử dụng GPU RTX 3060 (CUDA 12.4) tiêu tốn nhiều VRAM. Chỉ xử lý **từng tác vụ và từng file một**.
+   - **Cấm** chạy đồng thời nhiều tiến trình nặng GPU hoặc chạy song song với tiến trình render của Concat để tránh tràn 6GB VRAM (`CUDA out of memory`).
 
 4. **Chạy hoàn toàn qua CLI (Non-interactive)**:
    - Không kích hoạt giao diện đồ họa (GUI) gây treo terminal của Agent.
@@ -134,15 +137,54 @@ Mọi tài nguyên tải từ internet **bắt buộc** qua bước hậu xử l
 
 ---
 
-## 6. Quy Trình Kết Hợp (Pipeline Chuẩn) & Kiểm Tra Đầu Ra
+## 6. Trích Xuất Kịch Bản & Căn Mốc Thời Gian Đa Ngôn Ngữ (`WhisperX` + `Demucs`)
+
+Dùng để nghe và chép lời tự động từ video hoặc file âm thanh (hỗ trợ đa ngôn ngữ: tiếng Việt, Anh, Nhật, Hàn, Trung...), khóa chuẩn mốc thời gian từng câu/từ bằng `wav2vec2` và xuất ra kịch bản dạng `[HH:MM:SS -> HH:MM:SS]: Nội dung`.
+
+### 6.1. Trường hợp A — Giọng nói rõ, không lẫn nhạc nền lớn (Chạy thẳng `WhisperX`):
+- Chỉ định rõ ngôn ngữ (`--language vi`, `en`, `ja`...) nếu đã biết để tăng tốc độ và độ chính xác; bỏ cờ `--language` nếu cần tự nhận diện đa ngôn ngữ.
+```powershell
+& "F:\A_Tool\Tools\whisperx\whisperx.bat" "<duong_dan\source_video.mp4>" --model large-v3-turbo --compute_type float16 --batch_size 8 --language vi --output_dir "<PROJECT_DIR>\temp_assets\preprocess" --output_format all
+```
+
+### 6.2. Trường hợp B — Video/Audio có lẫn nhạc nền (BGM) hoặc tiếng ồn mạnh (Tách giọng trước):
+Chạy **tuần tự** 2 bước để chống ảo giác sinh chữ sai ở đoạn nhạc dạo và không vượt ngưỡng 6GB VRAM:
+
+1. **Bước 1 — Tách riêng track giọng nói (`vocals.wav`) bằng `Demucs`:**
+   ```powershell
+   & "F:\A_Tool\Tools\demucs\demucs.bat" --two-stems=vocals -n htdemucs "<duong_dan\source_video.mp4>" -o "<PROJECT_DIR>\temp_assets\preprocess\demucs_out"
+   ```
+   *(File giọng sạch sẽ nằm tại `<PROJECT_DIR>\temp_assets\preprocess\demucs_out\htdemucs\<ten_file_khong_duoi>\vocals.wav`).*
+
+2. **Bước 2 — Chép lời & căn mốc thời gian trên file `vocals.wav` bằng `WhisperX`:**
+   ```powershell
+   & "F:\A_Tool\Tools\whisperx\whisperx.bat" "<PROJECT_DIR>\temp_assets\preprocess\demucs_out\htdemucs\<ten_file>\vocals.wav" --model large-v3-turbo --compute_type float16 --batch_size 8 --language vi --output_dir "<PROJECT_DIR>\temp_assets\preprocess" --output_format all
+   ```
+
+### 6.3. Xuất kịch bản chuẩn `[HH:MM:SS -> HH:MM:SS]: Nội dung` từ file `.json`:
+Sau khi `WhisperX` sinh ra file `<ten_file>.json` và `<ten_file>.srt`, chạy lệnh sau để xuất file kịch bản `.txt` đúng chuẩn đọc/dựng:
+```powershell
+conda run -n NttDzEditVideo python -c "import json, datetime; fmt=lambda s: str(datetime.timedelta(seconds=int(s))).zfill(8); data=json.load(open(r'<PROJECT_DIR>\temp_assets\preprocess\<ten_file>.json', encoding='utf-8')); lines=[f'[{fmt(seg["start"])} -> {fmt(seg["end"])}]: {seg["text"].strip()}' for seg in data['segments']]; open(r'<PROJECT_DIR>\temp_assets\preprocess\transcript_script.txt', 'w', encoding='utf-8').write('
+'.join(lines)); print('
+'.join(lines))"
+```
+
+### Lưu ý hiệu năng & xử lý sự cố VRAM (RTX 3060 6GB):
+- Nếu gặp lỗi tràn bộ nhớ GPU (`CUDA out of memory`), giảm `--batch_size 8` xuống `--batch_size 4` (hoặc `--compute_type int8_float16`).
+- Với video/audio dài trên **90 phút**, dùng `ffmpeg` cắt nhỏ thành từng đoạn 15–20 phút trước khi chạy `WhisperX` để bộ căn chỉnh `wav2vec2` không chiếm dụng quá nhiều RAM/VRAM.
+
+---
+
+## 7. Quy Trình Kết Hợp (Pipeline Chuẩn) & Kiểm Tra Đầu Ra
 
 Khi người dùng yêu cầu xử lý liên hoàn nhiều bước trên cùng một tư liệu, thực hiện đúng thứ tự tối ưu sau để tiết kiệm thời gian và tài nguyên GPU:
 
 1. **Bước 1 — Thu thập (`yt-dlp`)**: Tải video nguồn chuẩn H.264/MP4 vào `<PROJECT_DIR>\temp_assets\preprocess\source.mp4`.
-2. **Bước 2 — Cắt khoảng lặng (`auto-editor`)**: Lọc bỏ đoạn thừa trước (`source_clean.mp4`) để giảm thời lượng video, giúp bước AI phía sau chạy nhanh hơn và ít tốn VRAM hơn.
+2. **Bước 2 — Cắt khoảng lặng (`auto-editor`)**: Lọc bỏ đoạn thừa trước (`source_clean.mp4`) để giảm thời lượng video, giúp các bước AI phía sau chạy nhanh hơn và ít tốn VRAM hơn.
 3. **Bước 3 — Xóa phụ đề/logo (`VSR`)**: Chạy VSR trên file đã cắt gọn (`source_clean.mp4` $\rightarrow$ `source_ready.mp4`).
-4. **Bước 4 — Nghiệm thu & Bàn giao thông số cho Skill kế tiếp**:
-   Kiểm tra file kết quả tồn tại, dung lượng `> 0 KB` và đo chính xác `duration` trước khi báo hoàn thành hoặc chuyển sang `dynamic-visual-enhancer` / `Concat MCP`:
+4. **Bước 4 — Trích xuất kịch bản (`Demucs` $\rightarrow$ `WhisperX`)**: Tách giọng (nếu có nhạc nền) và xuất `transcript_script.txt` + `.srt` từ `source_ready.mp4`.
+5. **Bước 5 — Nghiệm thu & Bàn giao thông số cho Skill kế tiếp**:
+   Kiểm tra file kết quả tồn tại, dung lượng `> 0 KB` và đo chính xác `duration` trước khi báo hoàn thành hoặc chuyển sang `subtitle-craft` / `dynamic-visual-enhancer` / `Concat MCP`:
    ```powershell
    Get-Item "<PROJECT_DIR>\temp_assets\preprocess\source_ready.mp4" | Select-Object Name, Length
    conda run -n NttDzEditVideo ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "<PROJECT_DIR>\temp_assets\preprocess\source_ready.mp4"
