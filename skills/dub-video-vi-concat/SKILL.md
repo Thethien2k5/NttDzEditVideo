@@ -17,6 +17,7 @@ Khi thực thi từng công đoạn, đọc và tuân thủ quy chuẩn kỹ thu
 * **Tiền xử lý, tách tiếng & chép lời**: `../main-ntt-edit/modules/media-preprocess/SKILL.md`
 * **Tổng hợp giọng nói tiếng Việt**: `../main-ntt-edit/modules/vieneu-tts-voiceover/SKILL.md`
 * **Biên tập & kiểm chuẩn phụ đề (QC)**: `../main-ntt-edit/modules/subtitle-craft/SKILL.md` (script QC: `../main-ntt-edit/modules/subtitle-craft/scripts/subtitle_engine.py`)
+* **Hiệu ứng & chuyển cảnh native Concat**: `../main-ntt-edit/modules/concat-native-fx/SKILL.md`
 * **Hiệu ứng chuyển động & chống nhàm chán**: `../main-ntt-edit/modules/dynamic-visual-enhancer/SKILL.md` và `../main-ntt-edit/modules/hyperframes-motion/SKILL.md`
 
 **Đường dẫn CLI thực thi trực tiếp (môi trường `NttDzEditVideo` — Python 3.10 + CUDA 12.4):**

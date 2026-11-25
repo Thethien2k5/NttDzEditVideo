@@ -1,6 +1,6 @@
 ---
 name: main-ntt-edit
-description: "Skill điều phối trung tâm để biên tập video chuyên nghiệp qua Concat Video Editor MCP (127.0.0.1:7420): phân tích kịch bản theo mốc thời gian, cắt ghép timeline, chèn phụ đề/tiêu đề, xuất bản video và điều hướng sang các sub-skill lồng tiếng (VieNeu-TTS), đồ họa động (Hyperframes), tạo ảnh AI thực tế/minh họa (ComfyUI Qwen-Image 2.1), hoặc tiền xử lý media (auto-editor, VSR, yt-dlp)."
+description: "Skill điều phối trung tâm để biên tập video chuyên nghiệp qua Concat Video Editor MCP (127.0.0.1:7420): phân tích kịch bản theo mốc thời gian, cắt ghép timeline, chèn phụ đề/tiêu đề, xuất bản video và điều hướng sang các sub-skill: hiệu ứng & chuyển cảnh native (concat-native-fx), lồng tiếng (VieNeu-TTS), đồ họa động (Hyperframes), tăng sinh động thị giác (dynamic-visual-enhancer) hoặc tiền xử lý media (auto-editor, VSR, yt-dlp)."
 ---
 
 # Điều Phối Biên Tập Video (Concat MCP Orchestrator)
@@ -31,11 +31,12 @@ Skill này đóng vai trò nhạc trưởng: nhận diện ý định người d
 | Yêu cầu / Tình huống của người dùng | Hành động / Công cụ thực thi |
 | :--- | :--- |
 | **Cắt ghép, chia đoạn, chèn clip/nhạc** | Thực thi trực tiếp bằng **Concat MCP** (Mục 4.1). |
+| **Chuyển cảnh (Whip Pan, Dissolve, Glitch), hiệu ứng (Shake, Film Grain, Glow), chỉnh màu/LUTs (Teal-Orange, Cyberpunk, VHS), tách phông xanh Chroma Key, Keyframe camera (Punch-in, Ken Burns) hoặc lọc tạp âm thoại** | Gọi sub-skill **`concat-native-fx`** để áp dụng trực tiếp kho GPU Shader native thời gian thực trên Concat MCP mà không tốn công render FFmpeg. |
 | **Tạo phụ đề, chữ chạy, tiêu đề chính** | Thực thi trực tiếp bằng **Concat MCP** (`captions_add`, `title_add` - Mục 4.2) và gọi sub-skill **`subtitle-craft`**. |
 | **Lồng tiếng, thuyết minh, đọc kịch bản** | Gọi sub-skill **`vieneu-tts-voiceover`** tạo file `.wav` -> nạp vào Concat MCP. |
 | **Tạo Intro, Outro, Lower-third, chữ bay, biểu đồ code** | Gọi sub-skill **`hyperframes-motion`** tạo `.webm`, `.mp4` tùy trường hợp -> chèn trên cùng timeline của Concat. |
 | **Cắt khoảng lặng, xóa logo/sub, tải tư liệu có sẵn** | Gọi sub-skill **`media-preprocess`** (`auto-editor`, `VSR`, `yt-dlp`) -> nạp file sạch vào Concat. |
-| **Tăng sinh động, chống nhàm chán (zoom theo nhịp thoại, overlay từ khóa, ken burns cho ảnh tĩnh)** | Gọi sub-skill **`dynamic-visual-enhancer`** phân tích giọng đọc/hình ảnh -> tạo chuyển động/overlay `.webm` nạp vào Concat MCP. |
+| **Tăng sinh động, chống nhàm chán (phân tích nhịp thoại, overlay từ khóa, meme & SFX đồng bộ)** | Gọi sub-skill **`dynamic-visual-enhancer`** phân tích giọng đọc/hình ảnh -> phối hợp **`concat-native-fx`** tạo chuyển động camera/hiệu ứng native hoặc lấy meme/sound-effects nạp vào Concat MCP.|
 | **Render / Xuất video thành phẩm** | Chỉ chạy khi người dùng yêu cầu rõ: `project_save` -> `export_start` -> `export_wait`. |
 | **Trích xuất kịch bản, chép lời theo mốc thời gian `[HH:MM:SS -> HH:MM:SS]` từ video/audio (có hoặc không có nhạc nền)** | Gọi sub-skill **`media-preprocess`** (`WhisperX` + `Demucs` tách giọng) -> xuất `transcript_script.txt` / `.srt` phục vụ biên tập hoặc nạp phụ đề vào Concat MCP. |
 
@@ -114,6 +115,25 @@ title_add(
 )
 ```
 
+* **Áp dụng Hiệu Ứng, Chuyển Cảnh & Keyframe Native (gọi sub-skill `concat-native-fx`)**:
+  * Thêm chuyển cảnh giữa các clip:
+    ```python
+    clip_update(path="...", clipId="<id_clip_sau>", patch={"transitionIn": {"id": "concat.whip-pan", "duration": 0.8}})
+    ```
+  * Áp dụng hiệu ứng / tách phông xanh Chroma Key trực tiếp:
+    ```python
+    clip_update(path="...", clipId="<id_clip_meme>", patch={"videoEffects": [{"id": "concat.chroma-key", "params": {"color": 0.0, "spill": 100.0}}]})
+    ```
+  * Keyframe chuyển động máy quay ảo (Ken Burns, Zoom In):
+    ```python
+    keyframe_set(path="...", clipId="<id_clip>", property="scale", at=0.0, value=1.0)
+    keyframe_set(path="...", clipId="<id_clip>", property="scale", at=1.0, value=1.15)
+    ```
+  * Phủ lớp màu LUT điện ảnh cho toàn bộ khung cảnh:
+    ```python
+    effect_layer_add(path="...", start=0.0, duration=30.0, effectId="concat.teal-orange", name="Look Teal-Orange")
+    ```
+
 * **Xuất bản (Chỉ khi được yêu cầu)**:
   `project_save(path="...")` -> `export_start(path="...", output="<file_xuat.mp4>")` -> theo dõi bằng `export_status` / `export_wait` và trả về đường dẫn file hoàn chỉnh.
 
@@ -133,6 +153,11 @@ title_add(
 | `clips_split` | `path`, `clip_ids`, `split_sec` | Cắt đôi clip tại mốc giây |
 | `clips_move` | `path`, `clip_ids`, `delta_sec` | Dịch chuyển clip sang trái/phải theo số giây |
 | `clips_remove` | `path`, `clip_ids` | Xóa clip khỏi timeline |
+| `clip_update` | `path`, `clip_id`, `patch` | Cập nhật chuyển cảnh (`transitionIn`), hiệu ứng (`videoEffects`), âm thanh (`filters`), độ mờ (`opacity`), hòa trộn (`blend`) |
+| `keyframe_set` | `path`, `clip_id`, `property`, `at`, `value`, `ease` | Đặt keyframe hoạt họa (`scale`, `offsetX`, `offsetY`, `rotation`, `opacity`) tạo Ken Burns, Punch-in zoom mượt mà |
+| `effect_layer_add` | `path`, `start`, `duration`, `effectId`, `name`, `sound` | Đặt lớp hiệu ứng / bộ lọc màu LUT (Adjustment Layer) phủ lên nhiều track |
+| `effects_list` | `{}` | Tra cứu toàn bộ 132 hiệu ứng, chuyển cảnh, bộ lọc màu và âm thanh thời gian thực |
+| `clip_stabilize` | `path`, `clip_id`, `smoothness` | Tự động chống rung khung hình cho video clip |
 | `title_add` | `path`, `lane_id`, `text`, `start_sec`, `duration_sec` | Chèn lớp chữ tiêu đề tĩnh lên video |
 | `captions_add` | `path`, `lane_id`, `captions` | Chèn hàng loạt phụ đề khớp mốc thời gian |
 | `export_start` / `export_status` / `export_wait` | `path`, (`output`) | Khởi chạy, kiểm tra tiến độ và chờ render hoàn tất |

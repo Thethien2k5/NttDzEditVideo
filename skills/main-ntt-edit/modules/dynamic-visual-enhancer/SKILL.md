@@ -1,18 +1,19 @@
 ---
 name: dynamic-visual-enhancer
-description: "Tăng cường thị giác, âm thanh và nhịp điệu chống nhàm chán cho video dựa trên giọng đọc và hình ảnh: điều phối liên hoàn media-preprocess (nhạc nền không bản quyền, SFX, meme phông xanh, B-roll), hyperframes-motion (đồ họa động .webm đa engine) và chuyển cảnh shader nghệ thuật (PixiJS + GL Transitions), tự động phát hiện khoảng tĩnh > 4s hoặc điểm nhấn lời thoại để tạo chuyển động máy quay ảo (Punch-in Zoom, Ramp Zoom, Impact Shake, Ken Burns) và dàn đa tầng lên Concat MCP."
+description: "Tăng cường thị giác, âm thanh và nhịp điệu chống nhàm chán cho video dựa trên giọng đọc và hình ảnh: phối hợp chuyển cảnh & hiệu ứng native thời gian thực (concat-native-fx: 22 transitions, 28 video effects, 57 filters, keyframe zoom/pan/shake), media-preprocess (nhạc nền, SFX, meme, B-roll), hyperframes-motion (đồ họa động .webm đa engine) và PixiJS GL Transitions nâng cao."
 ---
 
 # Tăng Cường Thị Giác, Âm Thanh & Nhịp Điệu (`dynamic-visual-enhancer`)
 
-Skill này đóng vai trò **Đạo Diễn Nhịp Điệu Trung Tâm**, biến các đoạn video đứng yên, cảnh nói chuyện kéo dài (talking-head) hoặc ảnh tĩnh trở nên lôi cuốn bằng cách đồng bộ **chuyển động hình ảnh + chuyển cảnh GLSL + đồ họa động + meme + nhạc nền & SFX** theo từng nhịp lời thoại.
+Skill này đóng vai trò **Đạo Diễn Nhịp Điệu Trung Tâm**, biến các đoạn video đứng yên, cảnh nói chuyện kéo dài (talking-head) hoặc ảnh tĩnh trở nên lôi cuốn bằng cách đồng bộ **chuyển động hình ảnh + chuyển cảnh + đồ họa động + meme + nhạc nền & SFX** theo từng nhịp lời thoại.
 
 - **Môi trường thực thi**: Mọi lệnh CLI (`ffmpeg`, `ffprobe`, script Python phân tích âm thanh/hình ảnh) **bắt buộc** chạy qua `conda run -n NttDzEditVideo` trên PowerShell.
 - **Hệ sinh thái phối hợp**:
-  1. Gọi **`media-preprocess`** để tải & chuẩn hóa âm lượng (`LUFS`) nhạc nền không bản quyền (`bgm_*`), hiệu ứng âm thanh (`sfx_*`), B-roll minh họa (`broll_*`) và tách nền meme phông xanh (`meme_*_alpha.webm`).
-  2. Gọi **`hyperframes-motion`** để render đồ họa vector/chữ động/hạt không khí/vật lý/3D/sóng âm trong suốt (`.webm` Alpha).
-  3. Dùng **`PixiJS + GL Transitions`** (qua `hyperframes.bat` và kho cục bộ `F:\A_Tool\Tools\hyperframes\vendor\`) khi cần chuyển cảnh shader nghệ thuật giữa 2 ảnh AI từ ComfyUI hoặc tạo hiệu ứng parallax 2.5D / glitch nhấn nhịp.
-  4. Thao tác trực tiếp trên **`Concat MCP`** để dàn đa tầng hình ảnh và âm thanh.
+  1. **Ưu tiên 1 (Native Engine - Nhanh nhất & Nhẹ VRAM nhất):** Gọi **`concat-native-fx`** để áp dụng trực tiếp chuyển cảnh (Whip Pan, Dissolve, Zoom Blur), hiệu ứng rung lắc (`concat.impact`, `concat.beat-shake`), chỉnh màu điện ảnh (`concat.teal-orange`) và keyframing máy quay ảo (Punch-in Zoom, Ken Burns) trực tiếp trên Concat MCP không cần render file phụ.
+  2. Gọi **`media-preprocess`** để tải & chuẩn hóa âm lượng (`LUFS`) nhạc nền không bản quyền (`bgm_*`), hiệu ứng âm thanh (`sfx_*`), B-roll minh họa (`broll_*`) và meme.
+  3. Gọi **`hyperframes-motion`** để render đồ họa vector/chữ động/hạt không khí/vật lý/3D/sóng âm trong suốt (`.webm` Alpha).
+  4. Dùng **`PixiJS + GL Transitions`** (qua `hyperframes.bat` và kho cục bộ `F:\A_Tool\Tools\hyperframes\vendor\`) khi cần chuyển cảnh shader nghệ thuật phức tạp giữa 2 ảnh AI từ ComfyUI hoặc tạo hiệu ứng parallax 2.5D.
+  5. Thao tác trực tiếp trên **`Concat MCP`** để dàn đa tầng hình ảnh và âm thanh.
 
 ---
 
@@ -51,27 +52,33 @@ Trước khi gọi bất kỳ lệnh render nào, đọc dữ liệu timeline (`
 
 ## 3. Bộ Kỹ Thuật Biến Đổi Thị Giác & Hiệu Ứng
 
-### Kỹ thuật A: Chuyển động máy quay ảo tốc độ cao (`FFmpeg` NVENC)
+### Kỹ thuật A: Chuyển động máy quay ảo (Camera Motion)
+> **Quy tắc ưu tiên hiệu năng:** Luôn ưu tiên dùng **`concat-native-fx`** (gọi `keyframe_set` và `clip_update` trên Concat MCP) để tạo Punch-in Zoom, Ken Burns và Rung chấn thời gian thực. Chỉ dùng lệnh `ffmpeg` xuất file video độc lập khi Concat đang không mở hoặc cần xuất clip riêng lẻ.
 
-1. **Punch-in Zoom (Phóng cận 112% dứt khoát tại câu nhấn mạnh):**
-   ```powershell
-   conda run -n NttDzEditVideo ffmpeg -y -i "<duong_dan\clip_goc.mp4>" -vf "scale=iw*1.12:ih*1.12,crop=iw/1.12:ih/1.12:(iw-ow)/2:(ih-oh)/2" -c:v h264_nvenc -cq 20 -c:a copy "<PROJECT_DIR>\temp_assets\visual_fx\fx_01_punchin.mp4"
+1. **Ken Burns & Smooth Ramp Zoom Native (Ưu tiên số 1 - Không tốn render):**
+   ```python
+   # Tạo Ken Burns đẩy khung hình mượt 100% -> 115% trên clip ảnh c20
+   keyframe_set(path="...", clipId="c20", property="scale", at=0.0, value=1.0)
+   keyframe_set(path="...", clipId="c20", property="scale", at=1.0, value=1.15)
    ```
 
-2. **Smooth Ramp Zoom (Zoom đẩy mượt từ 100% $\rightarrow$ 112% trong 3 giây):**
-   ```powershell
-   conda run -n NttDzEditVideo ffmpeg -y -i "<duong_dan\clip_goc.mp4>" -vf "scale=w='<W>*(1+0.12*min(t/3.0,1))':h='<H>*(1+0.12*min(t/3.0,1))':eval=frame,crop=<W>:<H>:(in_w-<W>)/2:(in_h-<H>)/2" -c:v h264_nvenc -cq 20 -c:a copy "<PROJECT_DIR>\temp_assets\visual_fx\fx_02_rampzoom.mp4"
+2. **Impact Camera Shake Native (Ưu tiên số 1 - Rung va chạm thời gian thực):**
+   ```python
+   # Gắn hiệu ứng rung va đập native khi gặp twist / meme rơi
+   clip_update(path="...", clipId="c15", patch={
+       "videoEffects": [{"id": "concat.impact", "params": {"amount": 60.0, "punch": 40.0}}]
+   })
    ```
 
-3. **Impact Camera Shake (Rung chấn nhẹ 0.25s khi gặp cú twist / meme):**
-   ```powershell
-   conda run -n NttDzEditVideo ffmpeg -y -i "<duong_dan\clip_goc.mp4>" -vf "scale='trunc(<W>*1.06/2)*2':'trunc(<H>*1.06/2)*2',crop=<W>:<H>:'(in_w-<W>)/2 + if(lt(t,0.25), sin(t*90)*18*(1-t/0.25), 0)':'(in_h-<H>)/2 + if(lt(t,0.25), cos(t*75)*12*(1-t/0.25), 0)'" -c:v h264_nvenc -cq 20 -c:a copy "<PROJECT_DIR>\temp_assets\visual_fx\fx_03_shake.mp4"
-   ```
-
-4. **Ken Burns Effect (Chuyển động Pan & Zoom mượt cho ảnh tĩnh):**
-   ```powershell
-   conda run -n NttDzEditVideo ffmpeg -y -loop 1 -i "<duong_dan\anh_tinh.png>" -vf "scale=8000:-1,zoompan=z='min(zoom+0.0012,1.15)':d=150:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=<W>x<H>:fps=30" -t 5 -c:v h264_nvenc -pix_fmt yuv420p "<PROJECT_DIR>\temp_assets\visual_fx\fx_04_kenburns.mp4"
-   ```
+3. **Fallback FFmpeg (Chỉ dùng khi cần render file .mp4 rời bên ngoài):**
+   - *Punch-in Zoom (Phóng cận 112% dứt khoát):*
+     ```powershell
+     conda run -n NttDzEditVideo ffmpeg -y -i "<duong_dan\clip_goc.mp4>" -vf "scale=iw*1.12:ih*1.12,crop=iw/1.12:ih/1.12:(iw-ow)/2:(ih-oh)/2" -c:v h264_nvenc -cq 20 -c:a copy "<PROJECT_DIR>\temp_assets\visual_fx\fx_01_punchin.mp4"
+     ```
+   - *Ken Burns FFmpeg:*
+     ```powershell
+     conda run -n NttDzEditVideo ffmpeg -y -loop 1 -i "<duong_dan\anh_tinh.png>" -vf "scale=8000:-1,zoompan=z='min(zoom+0.0012,1.15)':d=150:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=<W>x<H>:fps=30" -t 5 -c:v h264_nvenc -pix_fmt yuv420p "<PROJECT_DIR>\temp_assets\visual_fx\fx_04_kenburns.mp4"
+     ```
 
 ### Kỹ thuật B: Đồ họa động đè lớp qua `hyperframes-motion` (Overlay `.webm`)
 Điều phối sang **`hyperframes-motion`** để sinh clip overlay nền trong suốt (`<PROJECT_DIR>\temp_assets\motion\clip_XX\output.webm`):
